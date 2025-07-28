@@ -119,7 +119,7 @@ export const CourseCard = ({ course, isPreview = false }: CourseCardProps) => {
           ) : (
             <>
               <Button asChild className="flex-1" variant="default">
-                <Link to={`/courses/${course.slug}`}>
+                <Link to={`/course/${course.slug}`}>
                   {course.is_enrolled ? 'Lanjutkan Belajar' : 'Lihat Detail'}
                 </Link>
               </Button>
