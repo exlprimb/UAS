@@ -16,7 +16,7 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-export const useAuth = () => {
+export const useAuth = (): AuthContextType => {
   const context = useContext(AuthContext);
   if (context === undefined) {
     throw new Error('useAuth must be used within an AuthProvider');
@@ -24,7 +24,11 @@ export const useAuth = () => {
   return context;
 };
 
-export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+interface AuthProviderProps {
+  children: React.ReactNode;
+}
+
+export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [profile, setProfile] = useState<AppUser | null>(null);
   const [session, setSession] = useState<Session | null>(null);
@@ -33,30 +37,34 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   useEffect(() => {
     // Set up auth state listener
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
+      (event, session) => {
         setSession(session);
         setUser(session?.user ?? null);
         
         if (session?.user) {
           // Fetch user profile
           setTimeout(async () => {
-            const { data: profileData } = await supabase
-              .from('profiles')
-              .select('*')
-              .eq('user_id', session.user.id)
-              .single();
-            
-            if (profileData) {
-              setProfile({
-                id: profileData.id,
-                email: session.user.email!,
-                full_name: profileData.full_name,
-                role: profileData.role,
-                avatar_url: profileData.avatar_url,
-                bio: profileData.bio,
-                created_at: profileData.created_at,
-                updated_at: profileData.updated_at,
-              });
+            try {
+              const { data: profileData } = await supabase
+                .from('profiles')
+                .select('*')
+                .eq('user_id', session.user.id)
+                .single();
+              
+              if (profileData) {
+                setProfile({
+                  id: profileData.id,
+                  email: session.user.email!,
+                  full_name: profileData.full_name,
+                  role: profileData.role,
+                  avatar_url: profileData.avatar_url,
+                  bio: profileData.bio,
+                  created_at: profileData.created_at,
+                  updated_at: profileData.updated_at,
+                });
+              }
+            } catch (error) {
+              console.error('Error fetching profile:', error);
             }
           }, 0);
         } else {
@@ -124,7 +132,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return { error };
   };
 
-  const value = {
+  const value: AuthContextType = {
     user,
     profile,
     session,
