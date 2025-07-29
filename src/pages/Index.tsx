@@ -313,7 +313,7 @@ const Index = () => {
           </div>
           
           <div className="border-t border-border mt-8 pt-8 text-center text-muted-foreground">
-            <p>&copy; 2024 Web Learning Hub. Semua hak dilindungi undang-undang.</p>
+            <p>&copy; 2025 Web Learning Hub. Semua hak dilindungi undang-undang.</p>
           </div>
         </div>
       </footer>
