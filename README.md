@@ -25,3 +25,11 @@ This project is built with:
 - React
 - shadcn-ui
 - Tailwind CSS
+
+
+##  Default Accounts
+
+Role	Email	                Password	Access Level
+Admin	admin@weblearning.com	password	Full admin access
+Editor	editor@weblearning.com	password	Content management
+User	user@weblearning.com	password	Basic user access
