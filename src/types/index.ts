@@ -36,6 +36,7 @@ export interface Course {
   category?: Category;
   enrollments_count?: number;
   is_enrolled?: boolean;
+  modules?: CourseModule[];
 }
 
 export interface CourseModule {

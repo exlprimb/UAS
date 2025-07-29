@@ -1,23 +1,17 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
-import { User as AppUser } from '@/types'; // Menggunakan tipe AppUser dari types/index.ts
-import apiClient from '@/lib/axios';
-
-// Tipe untuk data user yang diterima dari Laravel
-interface LaravelUser {
-  id: number;
-  name: string;
-  email: string;
-  profile: AppUser; // Relasi profile
-}
+import { User, Session } from '@supabase/supabase-js';
+import { supabase } from '@/integrations/supabase/client';
+import { User as AppUser } from '@/types';
 
 interface AuthContextType {
-  user: LaravelUser | null;
+  user: User | null;
+  session: Session | null;
   profile: AppUser | null;
   loading: boolean;
   signUp: (email: string, password: string, fullName: string) => Promise<{ error: any }>;
   signIn: (email: string, password: string) => Promise<{ error: any }>;
   signOut: () => Promise<void>;
-
+  updateProfile: (updates: Partial<AppUser>) => Promise<{ error: any }>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -35,82 +29,144 @@ interface AuthProviderProps {
 }
 
 export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
-  const [user, setUser] = useState<LaravelUser | null>(null);
+  const [user, setUser] = useState<User | null>(null);
+  const [session, setSession] = useState<Session | null>(null);
   const [profile, setProfile] = useState<AppUser | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // Fungsi untuk mengambil data user saat aplikasi dimuat
+  // Fetch user profile
+  const fetchUserProfile = async (userId: string) => {
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('user_id', userId)
+        .single();
+      
+      if (error) throw error;
+      
+      // Map profile data to AppUser type
+      if (data && user) {
+        const mappedProfile: AppUser = {
+          id: data.id,
+          email: user.email || '',
+          full_name: data.full_name,
+          role: data.role,
+          avatar_url: data.avatar_url,
+          bio: data.bio,
+          created_at: data.created_at,
+          updated_at: data.updated_at,
+        };
+        setProfile(mappedProfile);
+      }
+    } catch (error) {
+      console.error('Error fetching profile:', error);
+    }
+  };
+
   useEffect(() => {
-    const fetchUserOnLoad = async () => {
-      try {
-        const { data } = await apiClient.get('/api/user');
-        setUser(data);
-        if (data.profile) {
-          setProfile(data.profile);
+    // Set up auth state listener
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      (event, session) => {
+        setSession(session);
+        setUser(session?.user ?? null);
+        
+        if (session?.user) {
+          setTimeout(() => {
+            fetchUserProfile(session.user.id);
+          }, 0);
+        } else {
+          setProfile(null);
         }
-      } catch (error) {
-        console.log('User not authenticated');
-        setUser(null);
-        setProfile(null);
-      } finally {
+        
         setLoading(false);
       }
-    };
-    fetchUserOnLoad();
+    );
+
+    // Check for existing session
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setSession(session);
+      setUser(session?.user ?? null);
+      
+      if (session?.user) {
+        fetchUserProfile(session.user.id);
+      }
+      setLoading(false);
+    });
+
+    return () => subscription.unsubscribe();
   }, []);
 
   const signUp = async (email: string, password: string, fullName: string) => {
     try {
-      await apiClient.get('/sanctum/csrf-cookie');
-      const { data } = await apiClient.post('/register', {
-        name: fullName,
+      const redirectUrl = `${window.location.origin}/dashboard`;
+      
+      const { error } = await supabase.auth.signUp({
         email,
         password,
-        password_confirmation: password,
+        options: {
+          emailRedirectTo: redirectUrl,
+          data: {
+            full_name: fullName,
+          }
+        }
       });
-      setUser(data);
-      if (data.profile) {
-        setProfile(data.profile);
-      }
-      return { error: null };
+      
+      return { error };
     } catch (error: any) {
-      return { error: error.response?.data || { message: 'Registration failed' } };
+      return { error: { message: 'Registration failed' } };
     }
   };
 
   const signIn = async (email: string, password: string) => {
     try {
-      await apiClient.get('/sanctum/csrf-cookie');
-      const { data } = await apiClient.post('/login', { email, password });
-      setUser(data);
-      if (data.profile) {
-        setProfile(data.profile);
-      }
-      return { error: null };
+      const { error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
+      
+      return { error };
     } catch (error: any) {
-      return { error: error.response?.data || { message: 'Login failed' } };
+      return { error: { message: 'Login failed' } };
     }
   };
 
   const signOut = async () => {
     try {
-      await apiClient.post('/logout');
+      await supabase.auth.signOut();
     } catch (error) {
       console.error("Logout failed", error);
-    } finally {
-      setUser(null);
-      setProfile(null);
+    }
+  };
+
+  const updateProfile = async (updates: Partial<AppUser>) => {
+    if (!user) return { error: { message: 'No user logged in' } };
+    
+    try {
+      const { error } = await supabase
+        .from('profiles')
+        .update(updates)
+        .eq('user_id', user.id);
+      
+      if (error) throw error;
+      
+      // Refresh profile data
+      await fetchUserProfile(user.id);
+      return { error: null };
+    } catch (error: any) {
+      return { error };
     }
   };
 
   const value = {
     user,
+    session,
     profile,
     loading,
     signUp,
     signIn,
     signOut,
-    
+    updateProfile,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

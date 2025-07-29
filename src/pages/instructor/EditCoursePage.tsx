@@ -25,9 +25,64 @@ const mockCourse: Course = {
   thumbnail_url: 'https://placehold.co/1200x600/BFDBFE/1D4ED8?text=Thumbnail+Kursus',
   category_id: 'cat-1',
   status: 'draft',
+  instructor_id: 'user-1',
+  created_at: new Date().toISOString(),
+  updated_at: new Date().toISOString(),
   modules: [
-    { id: 'module-1', title: 'Pendahuluan', lessons: [{ id: 'lesson-1a', title: 'Apa itu React?' }, { id: 'lesson-1b', title: 'Setup Lingkungan' }] },
-    { id: 'module-2', title: 'Konsep Dasar', lessons: [{ id: 'lesson-2a', title: 'Komponen & Props' }, { id: 'lesson-2b', title: 'State & Lifecycle' }] },
+    { 
+      id: 'module-1', 
+      course_id: 'course-1',
+      title: 'Pendahuluan',
+      order_index: 1,
+      created_at: new Date().toISOString(),
+      lessons: [
+        { 
+          id: 'lesson-1a', 
+          module_id: 'module-1',
+          title: 'Apa itu React?',
+          duration_minutes: 0,
+          order_index: 1,
+          is_preview: false,
+          created_at: new Date().toISOString()
+        }, 
+        { 
+          id: 'lesson-1b', 
+          module_id: 'module-1',
+          title: 'Setup Lingkungan',
+          duration_minutes: 0,
+          order_index: 2,
+          is_preview: false,
+          created_at: new Date().toISOString()
+        }
+      ] 
+    },
+    { 
+      id: 'module-2', 
+      course_id: 'course-1',
+      title: 'Konsep Dasar',
+      order_index: 2,
+      created_at: new Date().toISOString(),
+      lessons: [
+        { 
+          id: 'lesson-2a', 
+          module_id: 'module-2',
+          title: 'Komponen & Props',
+          duration_minutes: 0,
+          order_index: 1,
+          is_preview: false,
+          created_at: new Date().toISOString()
+        }, 
+        { 
+          id: 'lesson-2b', 
+          module_id: 'module-2',
+          title: 'State & Lifecycle',
+          duration_minutes: 0,
+          order_index: 2,
+          is_preview: false,
+          created_at: new Date().toISOString()
+        }
+      ] 
+    },
   ],
 };
 
