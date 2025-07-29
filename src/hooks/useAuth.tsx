@@ -1,11 +1,17 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
-import { User, Session } from '@supabase/supabase-js';
-import { supabase } from '@/integrations/supabase/client';
-import { User as AppUser } from '@/types';
+import { User as AppUser } from '@/types'; // Menggunakan tipe AppUser dari types/index.ts
+import apiClient from '@/lib/axios';
+
+// Tipe untuk data user yang diterima dari Laravel
+interface LaravelUser {
+  id: number;
+  name: string;
+  email: string;
+  profile: AppUser; // Relasi profile
+}
 
 interface AuthContextType {
-  user: User | null;
-  session: Session | null;
+  user: LaravelUser | null;
   profile: AppUser | null;
   loading: boolean;
   signUp: (email: string, password: string, fullName: string) => Promise<{ error: any }>;
@@ -29,113 +35,74 @@ interface AuthProviderProps {
 }
 
 export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
-  const [user, setUser] = useState<User | null>(null);
-  const [session, setSession] = useState<Session | null>(null);
+  const [user, setUser] = useState<LaravelUser | null>(null);
   const [profile, setProfile] = useState<AppUser | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // Fetch user profile
-  const fetchUserProfile = async (userId: string) => {
-    try {
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('user_id', userId)
-        .single();
-      
-      if (error) throw error;
-      
-      // Map profile data to AppUser type
-      if (data && user) {
-        const mappedProfile: AppUser = {
-          id: data.id,
-          email: user.email || '',
-          full_name: data.full_name,
-          role: data.role,
-          avatar_url: data.avatar_url,
-          bio: data.bio,
-          created_at: data.created_at,
-          updated_at: data.updated_at,
-        };
-        setProfile(mappedProfile);
-      }
-    } catch (error) {
-      console.error('Error fetching profile:', error);
-    }
-  };
-
+  // Fungsi untuk mengambil data user saat aplikasi dimuat
   useEffect(() => {
-    // Set up auth state listener
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (event, session) => {
-        setSession(session);
-        setUser(session?.user ?? null);
-        
-        if (session?.user) {
-          setTimeout(() => {
-            fetchUserProfile(session.user.id);
-          }, 0);
-        } else {
-          setProfile(null);
+    const fetchUserOnLoad = async () => {
+      try {
+        const { data } = await apiClient.get('/api/user');
+        setUser(data);
+        if (data.profile) {
+          setProfile(data.profile);
         }
-        
+      } catch (error) {
+        console.log('User not authenticated');
+        setUser(null);
+        setProfile(null);
+      } finally {
         setLoading(false);
       }
-    );
-
-    // Check for existing session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      setUser(session?.user ?? null);
-      
-      if (session?.user) {
-        fetchUserProfile(session.user.id);
-      }
-      setLoading(false);
-    });
-
-    return () => subscription.unsubscribe();
+    };
+    fetchUserOnLoad();
   }, []);
 
   const signUp = async (email: string, password: string, fullName: string) => {
     try {
-      const redirectUrl = `${window.location.origin}/dashboard`;
-      
-      const { error } = await supabase.auth.signUp({
+      await apiClient.get('/sanctum/csrf-cookie');
+      const { data } = await apiClient.post('/api/register', {
+        name: fullName,
         email,
         password,
-        options: {
-          emailRedirectTo: redirectUrl,
-          data: {
-            full_name: fullName,
-          }
-        }
+        password_confirmation: password,
       });
-      
-      return { error };
+      setUser(data);
+      if (data.profile) {
+        setProfile(data.profile);
+      }
+      return { error: null };
     } catch (error: any) {
-      return { error: { message: 'Registration failed' } };
+      return { error: error.response?.data || { message: 'Registration failed' } };
     }
   };
 
   const signIn = async (email: string, password: string) => {
     try {
-      const { error } = await supabase.auth.signInWithPassword({
+      await apiClient.get('/sanctum/csrf-cookie');
+      const { data } = await apiClient.post('/api/login', {
         email,
         password,
       });
-      
-      return { error };
+      setUser(data);
+      if (data.profile) {
+        setProfile(data.profile);
+      }
+      return { error: null };
     } catch (error: any) {
-      return { error: { message: 'Login failed' } };
+      return { error: error.response?.data || { message: 'Login failed' } };
     }
   };
 
   const signOut = async () => {
     try {
-      await supabase.auth.signOut();
+      await apiClient.post('/api/logout');
     } catch (error) {
       console.error("Logout failed", error);
+    } finally {
+      setUser(null);
+      setProfile(null);
     }
   };
 
@@ -143,24 +110,16 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     if (!user) return { error: { message: 'No user logged in' } };
     
     try {
-      const { error } = await supabase
-        .from('profiles')
-        .update(updates)
-        .eq('user_id', user.id);
-      
-      if (error) throw error;
-      
-      // Refresh profile data
-      await fetchUserProfile(user.id);
+      const { data } = await apiClient.put('/api/user/profile', updates);
+      setProfile(data);
       return { error: null };
     } catch (error: any) {
-      return { error };
+      return { error: error.response?.data || { message: 'Update failed' } };
     }
   };
 
   const value = {
     user,
-    session,
     profile,
     loading,
     signUp,

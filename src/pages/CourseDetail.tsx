@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
-import { supabase } from "@/integrations/supabase/client";
+import apiClient from "@/lib/axios";
 import { Course, CourseModule, Enrollment } from "@/types";
 import { Navigation } from "@/components/Navigation";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -32,53 +32,26 @@ const CourseDetail = () => {
 
   const fetchCourse = async () => {
     try {
-      // Fetch course details
-      const { data: courseData, error: courseError } = await supabase
-        .from('courses')
-        .select('*')
-        .eq('slug', slug)
-        .eq('status', 'published')
-        .single();
-
-      if (courseError) throw courseError;
-
-      // Fetch instructor and category separately
-      const [instructorResult, categoryResult] = await Promise.all([
-        supabase.from('profiles').select('full_name').eq('user_id', courseData.instructor_id).single(),
-        courseData.category_id ? supabase.from('categories').select('name').eq('id', courseData.category_id).single() : Promise.resolve({ data: null })
-      ]);
-
-      const enrichedCourse = {
-        ...courseData,
-        instructor: instructorResult.data,
-        category: categoryResult.data
-      };
-
-      setCourse(enrichedCourse as Course);
+      // Fetch course details from Laravel API
+      const { data: courseData } = await apiClient.get(`/api/courses/${slug}`);
+      
+      setCourse(courseData as Course);
 
       // Fetch course modules and lessons
-      const { data: modulesData, error: modulesError } = await supabase
-        .from('course_modules')
-        .select(`
-          *,
-          lessons(*)
-        `)
-        .eq('course_id', courseData.id)
-        .order('order_index');
-
-      if (modulesError) throw modulesError;
+      const { data: modulesData } = await apiClient.get(`/api/courses/${courseData.id}/modules`);
       setModules(modulesData || []);
 
       // Check enrollment status if user is logged in
       if (user && courseData.id) {
-        const { data: enrollmentData } = await supabase
-          .from('enrollments')
-          .select('*')
-          .eq('user_id', user.id)
-          .eq('course_id', courseData.id)
-          .single();
-        
-        setEnrollment(enrollmentData);
+        try {
+          const { data: enrollmentData } = await apiClient.get(
+            `/api/enrollments?user_id=${user.id}&course_id=${courseData.id}`
+          );
+          setEnrollment(enrollmentData);
+        } catch (error) {
+          // User not enrolled
+          setEnrollment(null);
+        }
       }
     } catch (error) {
       console.error('Error fetching course:', error);
@@ -102,14 +75,11 @@ const CourseDetail = () => {
 
     setEnrolling(true);
     try {
-      const { error } = await supabase
-        .from('enrollments')
-        .insert({
-          user_id: user.id,
-          course_id: course.id,
-        });
+      const { data } = await apiClient.post('/api/enroll', {
+        course_id: course.id,
+      });
 
-      if (error) throw error;
+      if (data.error) throw new Error(data.error);
 
       toast({
         title: "Berhasil!",

@@ -1,63 +1,64 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "@/hooks/useAuth";
-import { supabase } from "@/integrations/supabase/client";
+import { useNavigate } from "react-router-dom";
+import apiClient from "@/lib/axios";
 import { Course, Category } from "@/types";
 import { Navigation } from "@/components/Navigation";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Badge } from "@/components/ui/badge";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Edit, Trash2, BookOpen, Users, TrendingUp } from "lucide-react";
+import { CourseCard } from "@/components/CourseCard";
+import { Plus, BookOpen, Users, Eye, Edit, Trash2 } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 
 const ManageCourses = () => {
   const { user, profile } = useAuth();
+  const navigate = useNavigate();
   const { toast } = useToast();
   
   const [courses, setCourses] = useState<Course[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [showCreateForm, setShowCreateForm] = useState(false);
   const [creating, setCreating] = useState(false);
-  const [dialogOpen, setDialogOpen] = useState(false);
   
   const [formData, setFormData] = useState({
     title: '',
     description: '',
+    category_id: '',
     price: 0,
     is_free: true,
-    category_id: '',
-    thumbnail_url: ''
+    thumbnail_url: '',
   });
 
   useEffect(() => {
-    if (user && (profile?.role === 'pengajar' || profile?.role === 'admin')) {
-      fetchData();
+    if (!user || !profile) {
+      navigate('/auth');
+      return;
     }
+    
+    if (profile.role !== 'pengajar' && profile.role !== 'admin') {
+      navigate('/dashboard');
+      return;
+    }
+    
+    fetchData();
   }, [user, profile]);
 
   const fetchData = async () => {
     try {
-      // Fetch instructor's courses
-      const { data: coursesData, error: coursesError } = await supabase
-        .from('courses')
-        .select('*')
-        .eq('instructor_id', user!.id)
-        .order('created_at', { ascending: false });
+      // Fetch instructor's courses from Laravel API
+      const { data: coursesData } = await apiClient.get(
+        `/api/courses?instructor_id=${user!.id}`
+      );
+      setCourses(coursesData || []);
 
-      if (coursesError) throw coursesError;
-      setCourses(coursesData as Course[] || []);
-
-      // Fetch categories
-      const { data: categoriesData, error: categoriesError } = await supabase
-        .from('categories')
-        .select('*')
-        .order('name');
-
-      if (categoriesError) throw categoriesError;
+      // Fetch categories from Laravel API
+      const { data: categoriesData } = await apiClient.get('/api/categories');
       setCategories(categoriesData || []);
 
     } catch (error) {
@@ -67,64 +68,61 @@ const ManageCourses = () => {
         description: "Gagal memuat data kursus",
         variant: "destructive",
       });
-    } finally {
-      setLoading(false);
     }
   };
 
-  const createCourse = async () => {
-    if (!formData.title.trim()) {
-      toast({
-        title: "Error",
-        description: "Judul kursus harus diisi",
-        variant: "destructive",
-      });
-      return;
-    }
+  const resetForm = () => {
+    setFormData({
+      title: '',
+      description: '',
+      category_id: '',
+      price: 0,
+      is_free: true,
+      thumbnail_url: '',
+    });
+  };
 
+  const handleInputChange = (field: string, value: any) => {
+    setFormData(prev => ({
+      ...prev,
+      [field]: value
+    }));
+  };
+
+  const handleCreateCourse = async () => {
     setCreating(true);
     try {
       const slug = formData.title.toLowerCase()
         .replace(/[^a-z0-9]+/g, '-')
         .replace(/(^-|-$)/g, '');
 
-      const { error } = await supabase
-        .from('courses')
-        .insert({
-          title: formData.title,
-          slug,
-          description: formData.description,
-          price: formData.is_free ? 0 : formData.price,
-          is_free: formData.is_free,
-          category_id: formData.category_id || null,
-          thumbnail_url: formData.thumbnail_url || null,
-          instructor_id: user!.id,
-          status: 'draft'
-        });
+      const { data } = await apiClient.post('/api/courses', {
+        title: formData.title,
+        slug,
+        description: formData.description,
+        price: formData.is_free ? 0 : formData.price,
+        is_free: formData.is_free,
+        category_id: formData.category_id || null,
+        thumbnail_url: formData.thumbnail_url || null,
+        status: 'draft',
+      });
 
-      if (error) throw error;
+      if (data.error) throw new Error(data.error);
 
       toast({
-        title: "Berhasil!",
-        description: "Kursus berhasil dibuat",
+        title: "Kursus Berhasil Dibuat!",
+        description: "Anda dapat mulai mengelola kursus dari halaman edit.",
       });
 
-      setDialogOpen(false);
-      setFormData({
-        title: '',
-        description: '',
-        price: 0,
-        is_free: true,
-        category_id: '',
-        thumbnail_url: ''
-      });
+      setShowCreateForm(false);
+      resetForm();
       fetchData();
 
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error creating course:', error);
       toast({
         title: "Error",
-        description: "Gagal membuat kursus",
+        description: error.message || "Gagal membuat kursus",
         variant: "destructive",
       });
     } finally {
@@ -132,101 +130,86 @@ const ManageCourses = () => {
     }
   };
 
-  const getStatusBadge = (status: string) => {
-    const variants = {
-      draft: "secondary",
-      pending: "default",
-      published: "default",
-      rejected: "destructive"
-    };
-    
-    const colors = {
-      draft: "text-yellow-600",
-      pending: "text-blue-600",
-      published: "text-green-600",
-      rejected: "text-red-600"
-    };
-
-    return (
-      <Badge variant={variants[status as keyof typeof variants] as any} className={colors[status as keyof typeof colors]}>
-        {status === 'draft' && 'Draft'}
-        {status === 'pending' && 'Menunggu Review'}
-        {status === 'published' && 'Dipublikasi'}
-        {status === 'rejected' && 'Ditolak'}
-      </Badge>
-    );
+  const handleEditCourse = (course: Course) => {
+    navigate(`/instructor/course/${course.slug}/edit`);
   };
 
-  if (loading) {
+  const handleViewCourse = (course: Course) => {
+    navigate(`/course/${course.slug}`);
+  };
+
+  const getStatusBadge = (status: string) => {
+    const styles = {
+      draft: "bg-gray-100 text-gray-800",
+      pending: "bg-yellow-100 text-yellow-800",
+      published: "bg-green-100 text-green-800",
+      rejected: "bg-red-100 text-red-800"
+    };
+    
+    const labels = {
+      draft: "Draft",
+      pending: "Pending Review",
+      published: "Published",
+      rejected: "Rejected"
+    };
+
     return (
-      <div className="min-h-screen bg-background">
-        <Navigation />
-        <div className="container mx-auto px-4 py-8">
-          <div className="animate-pulse space-y-4">
-            <div className="h-8 bg-muted rounded w-1/3"></div>
-            <div className="grid gap-4">
-              {[1, 2, 3].map(i => (
-                <div key={i} className="h-32 bg-muted rounded"></div>
-              ))}
-            </div>
-          </div>
-        </div>
-      </div>
+      <span className={`px-2 py-1 text-xs rounded-full ${styles[status as keyof typeof styles]}`}>
+        {labels[status as keyof typeof labels]}
+      </span>
     );
-  }
+  };
 
   return (
     <div className="min-h-screen bg-background">
       <Navigation />
       
       <div className="container mx-auto px-4 py-8">
-        <div className="flex justify-between items-center mb-8">
+        <div className="flex items-center justify-between mb-8">
           <div>
             <h1 className="text-3xl font-bold">Kelola Kursus</h1>
-            <p className="text-muted-foreground">Manage dan monitor kursus Anda</p>
+            <p className="text-muted-foreground mt-2">
+              Buat dan kelola kursus pembelajaran Anda
+            </p>
           </div>
           
-          <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+          <Dialog open={showCreateForm} onOpenChange={setShowCreateForm}>
             <DialogTrigger asChild>
-              <Button>
-                <Plus className="h-4 w-4 mr-2" />
+              <Button className="flex items-center gap-2">
+                <Plus className="h-4 w-4" />
                 Buat Kursus Baru
               </Button>
             </DialogTrigger>
-            <DialogContent className="sm:max-w-[425px]">
+            <DialogContent className="max-w-2xl">
               <DialogHeader>
                 <DialogTitle>Buat Kursus Baru</DialogTitle>
-                <DialogDescription>
-                  Isi informasi dasar untuk membuat kursus baru
-                </DialogDescription>
               </DialogHeader>
-              <div className="grid gap-4 py-4">
-                <div className="grid gap-2">
+              
+              <div className="space-y-6">
+                <div className="space-y-2">
                   <Label htmlFor="title">Judul Kursus</Label>
                   <Input
                     id="title"
                     placeholder="Masukkan judul kursus"
                     value={formData.title}
-                    onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+                    onChange={(e) => handleInputChange('title', e.target.value)}
                   />
                 </div>
-                
-                <div className="grid gap-2">
+
+                <div className="space-y-2">
                   <Label htmlFor="description">Deskripsi</Label>
                   <Textarea
                     id="description"
-                    placeholder="Deskripsi singkat tentang kursus"
+                    placeholder="Deskripsi kursus"
                     value={formData.description}
-                    onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                    onChange={(e) => handleInputChange('description', e.target.value)}
+                    rows={4}
                   />
                 </div>
-                
-                <div className="grid gap-2">
-                  <Label htmlFor="category">Kategori</Label>
-                  <Select
-                    value={formData.category_id}
-                    onValueChange={(value) => setFormData({ ...formData, category_id: value })}
-                  >
+
+                <div className="space-y-2">
+                  <Label>Kategori</Label>
+                  <Select onValueChange={(value) => handleInputChange('category_id', value)}>
                     <SelectTrigger>
                       <SelectValue placeholder="Pilih kategori" />
                     </SelectTrigger>
@@ -239,41 +222,53 @@ const ManageCourses = () => {
                     </SelectContent>
                   </Select>
                 </div>
-                
+
+                <div className="space-y-2">
+                  <Label htmlFor="thumbnail">URL Thumbnail</Label>
+                  <Input
+                    id="thumbnail"
+                    placeholder="https://example.com/image.jpg"
+                    value={formData.thumbnail_url}
+                    onChange={(e) => handleInputChange('thumbnail_url', e.target.value)}
+                  />
+                </div>
+
                 <div className="flex items-center space-x-2">
-                  <input
-                    type="checkbox"
+                  <Switch
                     id="is_free"
                     checked={formData.is_free}
-                    onChange={(e) => setFormData({ 
-                      ...formData, 
-                      is_free: e.target.checked,
-                      price: e.target.checked ? 0 : formData.price
-                    })}
+                    onCheckedChange={(checked) => handleInputChange('is_free', checked)}
                   />
                   <Label htmlFor="is_free">Kursus Gratis</Label>
                 </div>
-                
+
                 {!formData.is_free && (
-                  <div className="grid gap-2">
-                    <Label htmlFor="price">Harga (IDR)</Label>
+                  <div className="space-y-2">
+                    <Label htmlFor="price">Harga (Rp)</Label>
                     <Input
                       id="price"
                       type="number"
                       placeholder="0"
                       value={formData.price}
-                      onChange={(e) => setFormData({ ...formData, price: parseInt(e.target.value) || 0 })}
+                      onChange={(e) => handleInputChange('price', parseInt(e.target.value) || 0)}
                     />
                   </div>
                 )}
-              </div>
-              <div className="flex justify-end gap-2">
-                <Button variant="outline" onClick={() => setDialogOpen(false)}>
-                  Batal
-                </Button>
-                <Button onClick={createCourse} disabled={creating}>
-                  {creating ? 'Membuat...' : 'Buat Kursus'}
-                </Button>
+
+                <div className="flex justify-end gap-3">
+                  <Button
+                    variant="outline"
+                    onClick={() => setShowCreateForm(false)}
+                  >
+                    Batal
+                  </Button>
+                  <Button
+                    onClick={handleCreateCourse}
+                    disabled={creating || !formData.title.trim()}
+                  >
+                    {creating ? 'Membuat...' : 'Buat Kursus'}
+                  </Button>
+                </div>
               </div>
             </DialogContent>
           </Dialog>
@@ -293,6 +288,18 @@ const ManageCourses = () => {
           
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Kursus Published</CardTitle>
+              <Eye className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">
+                {courses.filter(c => c.status === 'published').length}
+              </div>
+            </CardContent>
+          </Card>
+          
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Total Siswa</CardTitle>
               <Users className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
@@ -302,88 +309,76 @@ const ManageCourses = () => {
               </div>
             </CardContent>
           </Card>
-          
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Kursus Aktif</CardTitle>
-              <TrendingUp className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">
-                {courses.filter(course => course.status === 'published').length}
-              </div>
-            </CardContent>
-          </Card>
         </div>
 
-        {/* Courses List */}
-        <div className="space-y-4">
+        {/* Course List */}
+        <div className="space-y-6">
+          <h2 className="text-xl font-semibold">Daftar Kursus</h2>
+          
           {courses.length === 0 ? (
             <Card>
-              <CardContent className="p-6 text-center">
+              <CardContent className="p-8 text-center">
                 <BookOpen className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
                 <h3 className="text-lg font-medium mb-2">Belum Ada Kursus</h3>
                 <p className="text-muted-foreground mb-4">
-                  Mulai membuat kursus pertama Anda untuk berbagi pengetahuan
+                  Mulai berbagi pengetahuan dengan membuat kursus pertama Anda
                 </p>
-                <Button onClick={() => setDialogOpen(true)}>
+                <Button onClick={() => setShowCreateForm(true)}>
                   <Plus className="h-4 w-4 mr-2" />
                   Buat Kursus Pertama
                 </Button>
               </CardContent>
             </Card>
           ) : (
-            courses.map((course) => (
-              <Card key={course.id}>
-                <CardContent className="p-6">
-                  <div className="flex items-start justify-between">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2 mb-2">
-                        <h3 className="text-lg font-semibold">{course.title}</h3>
-                        {getStatusBadge(course.status)}
-                      </div>
-                      
-                      <p className="text-muted-foreground mb-4 line-clamp-2">
-                        {course.description}
-                      </p>
-                      
-                      <div className="flex items-center gap-6 text-sm text-muted-foreground">
-                        <div className="flex items-center gap-1">
-                          <Users className="h-4 w-4" />
-                          <span>{course.enrollments_count || 0} siswa</span>
-                        </div>
-                        <div>
-                          {course.is_free ? (
-                            <span className="text-green-600 font-medium">Gratis</span>
-                          ) : (
-                            <span className="font-medium">
-                              {new Intl.NumberFormat('id-ID', {
-                                style: 'currency',
-                                currency: 'IDR'
-                              }).format(course.price)}
+            <div className="space-y-4">
+              {courses.map((course) => (
+                <Card key={course.id}>
+                  <CardContent className="p-6">
+                    <div className="flex items-start justify-between">
+                      <div className="flex gap-4 flex-1">
+                        <img
+                          src={course.thumbnail_url || "/placeholder.svg"}
+                          alt={course.title}
+                          className="w-24 h-16 object-cover rounded"
+                        />
+                        <div className="flex-1">
+                          <div className="flex items-center gap-3 mb-2">
+                            <h3 className="font-semibold text-lg">{course.title}</h3>
+                            {getStatusBadge(course.status)}
+                          </div>
+                          <p className="text-muted-foreground text-sm mb-2 line-clamp-2">
+                            {course.description}
+                          </p>
+                          <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                            <span>
+                              {course.is_free ? 'Gratis' : `Rp ${course.price?.toLocaleString('id-ID')}`}
                             </span>
-                          )}
-                        </div>
-                        <div>
-                          Dibuat: {new Date(course.created_at).toLocaleDateString('id-ID')}
+                            <span>{course.enrollments_count || 0} siswa</span>
+                          </div>
                         </div>
                       </div>
+                      
+                      <div className="flex items-center gap-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleViewCourse(course)}
+                        >
+                          <Eye className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleEditCourse(course)}
+                        >
+                          <Edit className="h-4 w-4" />
+                        </Button>
+                      </div>
                     </div>
-                    
-                    <div className="flex items-center gap-2 ml-4">
-                      <Button variant="outline" size="sm">
-                        <Edit className="h-4 w-4 mr-1" />
-                        Edit
-                      </Button>
-                      <Button variant="outline" size="sm" className="text-destructive">
-                        <Trash2 className="h-4 w-4 mr-1" />
-                        Hapus
-                      </Button>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            ))
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
           )}
         </div>
       </div>

@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
-import { supabase } from "@/integrations/supabase/client";
+import apiClient from "@/lib/axios";
 import { Course, CourseModule, Lesson, Enrollment } from "@/types";
 import { Navigation } from "@/components/Navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -35,25 +35,17 @@ const Learn = () => {
 
   const fetchCourseData = async () => {
     try {
-      // Fetch course
-      const { data: courseData, error: courseError } = await supabase
-        .from('courses')
-        .select('*')
-        .eq('slug', slug)
-        .single();
-
-      if (courseError) throw courseError;
+      // Fetch course from Laravel API
+      const { data: courseData } = await apiClient.get(`/api/courses/${slug}`);
       setCourse(courseData as Course);
 
       // Check enrollment
-      const { data: enrollmentData, error: enrollmentError } = await supabase
-        .from('enrollments')
-        .select('*')
-        .eq('user_id', user!.id)
-        .eq('course_id', courseData.id)
-        .single();
-
-      if (enrollmentError || !enrollmentData) {
+      try {
+        const { data: enrollmentData } = await apiClient.get(
+          `/api/enrollments?user_id=${user!.id}&course_id=${courseData.id}`
+        );
+        setEnrollment(enrollmentData);
+      } catch (error) {
         toast({
           title: "Akses Ditolak",
           description: "Anda belum terdaftar di kursus ini",
@@ -63,19 +55,8 @@ const Learn = () => {
         return;
       }
 
-      setEnrollment(enrollmentData);
-
-      // Fetch modules and lessons
-      const { data: modulesData, error: modulesError } = await supabase
-        .from('course_modules')
-        .select(`
-          *,
-          lessons(*)
-        `)
-        .eq('course_id', courseData.id)
-        .order('order_index');
-
-      if (modulesError) throw modulesError;
+      // Fetch modules and lessons from Laravel API
+      const { data: modulesData } = await apiClient.get(`/api/courses/${courseData.id}/modules`);
       setModules(modulesData || []);
 
       // Set first lesson as current if none selected
@@ -113,13 +94,10 @@ const Learn = () => {
       const completedCount = newCompleted.size;
       const newProgress = (completedCount / totalLessons) * 100;
 
-      // Update enrollment progress
-      const { error } = await supabase
-        .from('enrollments')
-        .update({ progress: newProgress })
-        .eq('id', enrollment.id);
-
-      if (error) throw error;
+      // Update enrollment progress via Laravel API
+      await apiClient.put(`/api/enrollments/${enrollment.id}`, { 
+        progress: newProgress 
+      });
 
       setEnrollment({ ...enrollment, progress: newProgress });
 
