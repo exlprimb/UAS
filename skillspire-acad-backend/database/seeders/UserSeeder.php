@@ -6,7 +6,7 @@ use Illuminate\Database\Seeder;
 use App\Models\User;
 use App\Models\Profile;
 use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Str;
+use Illuminate\Support\Str; // Import Str facade
 
 class UserSeeder extends Seeder
 {
@@ -27,13 +27,13 @@ class UserSeeder extends Seeder
                 'name' => 'Editor User',
                 'email' => 'editor@weblearning.com',
                 'password' => 'password',
-                'role' => 'pengajar', 
+                'role' => 'pengajar',
             ],
             [
                 'name' => 'Basic User',
                 'email' => 'user@weblearning.com',
                 'password' => 'password',
-                'role' => 'pelajar', 
+                'role' => 'pelajar',
             ],
         ];
 
@@ -46,10 +46,10 @@ class UserSeeder extends Seeder
                 ]
             );
 
-            // Buat profil jika belum ada
+
             if (!$user->profile) {
                 Profile::create([
-                    'id' => Str::uuid(),
+                    'id' => Str::uuid(), 
                     'user_id' => $user->id,
                     'full_name' => $user->name,
                     'role' => $userData['role'],

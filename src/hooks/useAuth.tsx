@@ -1,13 +1,13 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
-import { User as AppUser } from '@/types';
+import { User as AppUser } from '@/types'; // Menggunakan tipe AppUser dari types/index.ts
 import apiClient from '@/lib/axios';
 
-// Tipe untuk user dari Laravel
+// Tipe untuk data user yang diterima dari Laravel
 interface LaravelUser {
   id: number;
   name: string;
   email: string;
-  profile: AppUser;
+  profile: AppUser; // Relasi profile
 }
 
 interface AuthContextType {
@@ -17,7 +17,7 @@ interface AuthContextType {
   signUp: (email: string, password: string, fullName: string) => Promise<{ error: any }>;
   signIn: (email: string, password: string) => Promise<{ error: any }>;
   signOut: () => Promise<void>;
-  updateProfile: (updates: Partial<AppUser>) => Promise<{ error: any }>;
+
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -39,6 +39,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [profile, setProfile] = useState<AppUser | null>(null);
   const [loading, setLoading] = useState(true);
 
+  // Fungsi untuk mengambil data user saat aplikasi dimuat
   useEffect(() => {
     const fetchUserOnLoad = async () => {
       try {
@@ -48,7 +49,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           setProfile(data.profile);
         }
       } catch (error) {
-        console.log('Not authenticated');
+        console.log('User not authenticated');
         setUser(null);
         setProfile(null);
       } finally {
@@ -102,26 +103,14 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }
   };
 
-  const updateProfile = async (updates: Partial<AppUser>) => {
-    if (!user) return { error: new Error('Not authenticated') };
-    try {
-      // Asumsi Anda punya endpoint PUT di /api/user/profile
-      const { data } = await apiClient.put('/api/user/profile', updates);
-      setProfile(data);
-      return { error: null };
-    } catch (error: any) {
-      return { error: error.response?.data || { message: 'Update failed' } };
-    }
-  };
-
-  const value: AuthContextType = {
+  const value = {
     user,
     profile,
     loading,
     signUp,
     signIn,
     signOut,
-    updateProfile,
+    
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
