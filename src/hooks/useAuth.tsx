@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
-import { User as AppUser } from '@/types'; // Menggunakan tipe AppUser dari types/index.ts
+import { User as AppUser } from '@/types';
 import apiClient from '@/lib/axios';
 
 // Tipe untuk data user yang diterima dari Laravel
@@ -38,9 +38,37 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [user, setUser] = useState<LaravelUser | null>(null);
   const [profile, setProfile] = useState<AppUser | null>(null);
   const [loading, setLoading] = useState(true);
+  
 
-  // Fungsi untuk mengambil data user saat aplikasi dimuat
   useEffect(() => {
+    // --- BYPASS LOGIN UNTUK DEVELOPMENT ---
+    // Kode ini membuat Anda seolah-olah sudah login sebagai admin.
+    // Untuk mengaktifkan kembali sistem login, hapus bagian ini dan
+    // aktifkan kembali bagian "KODE ASLI" di bawah.
+    console.warn("MODE BYPASS LOGIN AKTIF: Anda otomatis login sebagai Admin Developer.");
+
+    const mockLaravelUser: LaravelUser = {
+        id: 1, // ID User palsu
+        name: 'Admin Dev',
+        email: 'admin.dev@web.com',
+        profile: {
+            id: 1, // ID Profile palsu
+            user_id: 1,
+            full_name: 'Admin Developer',
+            headline: 'Super Admin',
+            bio: 'Akun bypass untuk keperluan development.',
+            role: 'admin', // Bisa diganti menjadi 'pengajar' atau 'pelajar' untuk tes
+            created_at: new Date().toISOString(),
+        }
+    };
+    setUser(mockLaravelUser);
+    setProfile(mockLaravelUser.profile);
+    setLoading(false); // Selesai loading dengan data palsu
+    // --- AKHIR DARI KODE BYPASS ---
+
+
+    // --- KODE ASLI (JANGAN HAPUS) ---
+    /*
     const fetchUserOnLoad = async () => {
       try {
         const { data } = await apiClient.get('/api/user');
@@ -57,8 +85,10 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       }
     };
     fetchUserOnLoad();
+    */
   }, []);
 
+  // Fungsi-fungsi lain (signIn, signUp, dll.) tidak perlu diubah
   const signUp = async (email: string, password: string, fullName: string) => {
     try {
       await apiClient.get('/sanctum/csrf-cookie');
