@@ -249,7 +249,7 @@ const AdminPanel = () => {
         <div className="flex justify-between items-center mb-8">
           <div>
             <h1 className="text-3xl font-bold">Admin Panel</h1>
-            <p className="text-muted-foreground">Kelola platform EduSpire</p>
+            <p className="text-muted-foreground">Kelola platform Web Learning Hub</p>
           </div>
         </div>
 

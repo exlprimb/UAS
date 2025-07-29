@@ -106,7 +106,7 @@ export default function Auth() {
             <div className="w-12 h-12 bg-white rounded-xl flex items-center justify-center shadow-medium">
               <GraduationCap className="w-7 h-7 text-primary" />
             </div>
-            <span className="text-2xl font-bold text-white">EduSpire</span>
+            <span className="text-2xl font-bold text-white">Web Learning Hub</span>
           </Link>
           <p className="text-white/80 mt-2">Platform pembelajaran online terbaik</p>
         </div>

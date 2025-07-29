@@ -7,11 +7,12 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { FileUpload } from '@/components/ui/FileUpload'; // Impor komponen FileUpload
-import { CurriculumManager } from '@/components/instructor/CurriculumManager'; // Impor CurriculumManager
 import { useToast } from '@/hooks/use-toast';
-import apiClient from '@/lib/axios'; // Aktifkan saat dihubungkan ke backend
+import apiClient from '@/lib/axios';
 import { Save, Send, Trash2 } from 'lucide-react';
+
+import { FileUpload } from './FileUpload'; 
+import { CurriculumManager } from './CurriculumManager';
 
 // Mock data untuk development
 const mockCourse: Course = {
@@ -41,7 +42,7 @@ const EditCoursePage = () => {
     try {
       // const response = await apiClient.get(`/api/courses/${slug}`);
       // setCourse(response.data.data);
-      setCourse(mockCourse); // Menggunakan mock data
+      setCourse(mockCourse); 
     } catch (error) {
       console.error("Gagal memuat kursus:", error);
       toast({ title: "Error", description: "Gagal memuat data kursus.", variant: "destructive" });

@@ -1,6 +1,6 @@
 import React, { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useAuth } from '@/hooks/useAuth'; // Pastikan path ini benar di proyek Anda
+import { useAuth } from '@/hooks/useAuth'; 
 
 interface ProtectedRouteProps {
   children: React.ReactNode;

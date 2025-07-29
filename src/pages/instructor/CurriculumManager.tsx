@@ -1,9 +1,11 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Course } from '@/types';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from '@/components/ui/dialog';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { Plus, Edit, GripVertical, BookOpen } from 'lucide-react';
 // import apiClient from '@/lib/axios'; // Aktifkan saat dihubungkan ke backend
 // import { useToast } from '@/hooks/use-toast'; // Aktifkan saat dihubungkan
@@ -12,6 +14,52 @@ interface CurriculumManagerProps {
   course: Course;
   onUpdate: () => void; // Fungsi untuk me-refresh data kursus
 }
+
+// Komponen form kecil untuk digunakan di dalam dialog
+const AddModuleForm = ({ onSubmit }: { onSubmit: (title: string) => void }) => {
+  const [title, setTitle] = useState('');
+  
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (title.trim()) {
+      onSubmit(title);
+      setTitle('');
+    }
+  };
+
+  return (
+    <form onSubmit={handleSubmit} className="grid gap-4 py-4">
+      <div className="grid grid-cols-4 items-center gap-4">
+        <Label htmlFor="module-title" className="text-right">Judul</Label>
+        <Input id="module-title" value={title} onChange={(e) => setTitle(e.target.value)} className="col-span-3" />
+      </div>
+      <Button type="submit" className="w-full">Simpan Modul</Button>
+    </form>
+  );
+};
+
+const AddLessonForm = ({ onSubmit }: { onSubmit: (title: string) => void }) => {
+    const [title, setTitle] = useState('');
+    
+    const handleSubmit = (e: React.FormEvent) => {
+      e.preventDefault();
+      if (title.trim()) {
+        onSubmit(title);
+        setTitle('');
+      }
+    };
+  
+    return (
+      <form onSubmit={handleSubmit} className="grid gap-4 py-4">
+        <div className="grid grid-cols-4 items-center gap-4">
+          <Label htmlFor="lesson-title" className="text-right">Judul</Label>
+          <Input id="lesson-title" value={title} onChange={(e) => setTitle(e.target.value)} className="col-span-3" />
+        </div>
+        <Button type="submit" className="w-full">Simpan Pelajaran</Button>
+      </form>
+    );
+  };
+
 
 export const CurriculumManager: React.FC<CurriculumManagerProps> = ({ course, onUpdate }) => {
   // const { toast } = useToast(); // Aktifkan saat dihubungkan
@@ -46,14 +94,14 @@ export const CurriculumManager: React.FC<CurriculumManagerProps> = ({ course, on
                 <DialogTitle>Buat Modul Baru</DialogTitle>
                 <DialogDescription>Masukkan judul untuk modul baru Anda.</DialogDescription>
               </DialogHeader>
-              {/* Form Tambah Modul akan ada di sini */}
+              <AddModuleForm onSubmit={handleAddModule} />
             </DialogContent>
           </Dialog>
         </div>
       </CardHeader>
       <CardContent>
         <Accordion type="multiple" className="w-full">
-          {course.modules.map(module => (
+          {course.modules?.map(module => (
             <AccordionItem value={module.id} key={module.id}>
               <AccordionTrigger>
                 <div className="flex items-center gap-2">
@@ -63,7 +111,7 @@ export const CurriculumManager: React.FC<CurriculumManagerProps> = ({ course, on
               </AccordionTrigger>
               <AccordionContent>
                 <div className="pl-6 space-y-2">
-                  {module.lessons.map(lesson => (
+                  {module.lessons?.map(lesson => (
                     <div key={lesson.id} className="flex items-center justify-between p-2 rounded-md hover:bg-muted">
                       <div className="flex items-center gap-2">
                          <BookOpen className="h-4 w-4 text-muted-foreground" />
@@ -82,7 +130,7 @@ export const CurriculumManager: React.FC<CurriculumManagerProps> = ({ course, on
                         <DialogHeader>
                           <DialogTitle>Pelajaran Baru di Modul "{module.title}"</DialogTitle>
                         </DialogHeader>
-                         {/* Form Tambah Pelajaran akan ada di sini */}
+                         <AddLessonForm onSubmit={(title) => handleAddLesson(module.id, title)} />
                       </DialogContent>
                    </Dialog>
                 </div>

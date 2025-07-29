@@ -225,7 +225,7 @@ const Index = () => {
       <section className="py-16">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-12">
-            <h2 className="text-3xl md:text-4xl font-bold mb-4">Mengapa Memilih EduSpire?</h2>
+            <h2 className="text-3xl md:text-4xl font-bold mb-4">Mengapa Memilih Web Learning Hub?</h2>
             <p className="text-xl text-muted-foreground">
               Platform pembelajaran yang dirancang untuk kesuksesan Anda
             </p>
@@ -252,7 +252,7 @@ const Index = () => {
             Siap Memulai Perjalanan Belajar?
           </h2>
           <p className="text-xl text-white/90 mb-8">
-            Bergabunglah dengan ribuan pelajar yang telah mengubah hidup mereka melalui EduSpire
+            Bergabunglah dengan ribuan pelajar yang telah mengubah hidup mereka melalui Web Learning Hub
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Button size="xl" variant="premium" asChild>
@@ -274,7 +274,7 @@ const Index = () => {
                 <div className="w-8 h-8 bg-gradient-primary rounded-lg flex items-center justify-center">
                   <GraduationCap className="w-5 h-5 text-white" />
                 </div>
-                <span className="text-xl font-bold">EduSpire</span>
+                <span className="text-xl font-bold">Web Learning Hub</span>
               </div>
               <p className="text-muted-foreground">
                 Platform pembelajaran online terdepan untuk mengembangkan karir dan keterampilan Anda.
@@ -313,7 +313,7 @@ const Index = () => {
           </div>
           
           <div className="border-t border-border mt-8 pt-8 text-center text-muted-foreground">
-            <p>&copy; 2024 EduSpire. Semua hak dilindungi undang-undang.</p>
+            <p>&copy; 2024 Web Learning Hub. Semua hak dilindungi undang-undang.</p>
           </div>
         </div>
       </footer>

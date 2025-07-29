@@ -1,15 +1,13 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
-// Hapus import User dan Session dari Supabase
 import { User as AppUser } from '@/types';
-import apiClient from '@/lib/axios'; // Gunakan instance Axios yang sudah kita buat
+import apiClient from '@/lib/axios';
 
-// Definisikan tipe User dari Laravel (sesuaikan jika perlu)
-// Biasanya hanya butuh beberapa properti utama di frontend
+// Tipe untuk user dari Laravel
 interface LaravelUser {
   id: number;
+  name: string;
   email: string;
-  // Tambahkan properti lain yang dikirim dari backend Laravel Anda
-  [key: string]: any;
+  profile: AppUser;
 }
 
 interface AuthContextType {
@@ -41,18 +39,16 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [profile, setProfile] = useState<AppUser | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // GANTI TOTAL: useEffect sekarang hanya mengecek sesi ke backend Laravel
   useEffect(() => {
     const fetchUserOnLoad = async () => {
       try {
         const { data } = await apiClient.get('/api/user');
         setUser(data);
-        if (data.profile) { // Asumsi backend menyertakan relasi profile
+        if (data.profile) {
           setProfile(data.profile);
         }
       } catch (error) {
-        console.log('User not authenticated');
-        // Pastikan user dan profile null jika tidak ada sesi
+        console.log('Not authenticated');
         setUser(null);
         setProfile(null);
       } finally {
@@ -62,32 +58,32 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     fetchUserOnLoad();
   }, []);
 
-  // BARU: Fungsi signUp untuk Laravel
   const signUp = async (email: string, password: string, fullName: string) => {
     try {
       await apiClient.get('/sanctum/csrf-cookie');
-      await apiClient.post('/register', { 
-        name: fullName, // Sesuaikan dengan nama field di backend
-        email, 
+      const { data } = await apiClient.post('/register', {
+        name: fullName,
+        email,
         password,
-        password_confirmation: password // Laravel biasanya butuh ini
+        password_confirmation: password,
       });
-      // Setelah register, Anda bisa otomatis login atau minta user login manual
-      await signIn(email, password);
+      setUser(data);
+      if (data.profile) {
+        setProfile(data.profile);
+      }
       return { error: null };
     } catch (error: any) {
       return { error: error.response?.data || { message: 'Registration failed' } };
     }
   };
 
-  // BENAR: Fungsi signIn untuk Laravel
   const signIn = async (email: string, password: string) => {
     try {
       await apiClient.get('/sanctum/csrf-cookie');
       const { data } = await apiClient.post('/login', { email, password });
       setUser(data);
       if (data.profile) {
-          setProfile(data.profile);
+        setProfile(data.profile);
       }
       return { error: null };
     } catch (error: any) {
@@ -95,34 +91,29 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }
   };
 
-  // BARU: Fungsi signOut untuk Laravel
   const signOut = async () => {
     try {
       await apiClient.post('/logout');
     } catch (error) {
       console.error("Logout failed", error);
     } finally {
-      // Selalu hapus state di frontend apapun hasilnya
       setUser(null);
       setProfile(null);
     }
   };
 
-  // BARU: Fungsi updateProfile untuk Laravel
   const updateProfile = async (updates: Partial<AppUser>) => {
     if (!user) return { error: new Error('Not authenticated') };
-    
     try {
-        // Asumsi Anda punya endpoint PUT/PATCH di /api/user/profile
-        const { data } = await apiClient.put('/api/user/profile', updates);
-        setProfile(data); // Update profile dengan data baru dari server
-        return { error: null };
+      // Asumsi Anda punya endpoint PUT di /api/user/profile
+      const { data } = await apiClient.put('/api/user/profile', updates);
+      setProfile(data);
+      return { error: null };
     } catch (error: any) {
-        return { error: error.response?.data || { message: 'Update failed' } };
+      return { error: error.response?.data || { message: 'Update failed' } };
     }
   };
 
-  // Hapus state 'session' karena tidak lagi relevan
   const value: AuthContextType = {
     user,
     profile,

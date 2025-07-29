@@ -43,7 +43,7 @@ class CourseController extends Controller
     public function show(Course $course)
     {
             {
-        // Laravel akan otomatis mencari course berdasarkan {slug} jika Anda menggunakan route model binding
+
         // Pastikan model Course Anda memiliki getRouteKeyName() { return 'slug'; }
         return new CourseResource($course->load(['instructor.profile', 'category', 'modules.lessons']));
     }
