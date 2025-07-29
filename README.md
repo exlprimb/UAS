@@ -27,9 +27,18 @@ This project is built with:
 - Tailwind CSS
 
 
-##  Default Accounts
+### Default Accounts
 
-Role	Email	                Password	Access Level
-Admin	admin@weblearning.com	password	Full admin access
-Editor	editor@weblearning.com	password	Content management
-User	user@weblearning.com	password	Basic user access
+| Role | Email | Password | Access Level |
+|------|--------|----------|--------------|
+| Admin | admin@weblearning.com | password | Full admin access |
+| Editor | editor@weblearning.com | password | Content management |
+| User | user@weblearning.com | password | Basic user access |
+
+### Features
+- Laravel Breeze authentication
+- Email verification support
+- Password reset functionality
+- Remember me option
+- Role-based authorization
+- Enhanced login/register UI
